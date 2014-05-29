@@ -2,7 +2,98 @@ require(FAwR)
 require(Hmisc)
 data(herbdata)
 
-herbdata$date <- as.POSIXct(strptime(herbdata$date,"%m/%d/%Y"))
+
+#2.2.1 Text Files
+fia.plots <- read.table("FAwR/inst/resources/data/fia_plots.csv", sep = ",",
+                        header = TRUE, row.names = 1)
+class(fia.plots)
+        head(fia.plots)
+        summary(fia.plots)
+        str(fia.plots)
+
+write.table(fia.plots,file="fia-plots.csv")
+##
+
+eg <- scan(file = eg <- scan(file = "FAwR/inst/resources/data/scan-example.txt",
+                             sep = "\n", what = ""))
+eg
+#class(eg) #character
+#        head(eg)
+#        summary(eg)
+#        str(eg)
+###
+
+n.in <- length(eg) # n.in = 7
+
+eg.trees <- eg.plots <- vector(mode = "list", length = n.in) #eg.plots = empty list with 7 NULL
+eg.trees #eg.trees = another empty list with 7 NULL
+
+plot.n <- tree.n <- 1 #plot.n = 1 #tree.n = 1
+
+
+for (i in 1 : n.in) { # n.in = 7. Looping through 7 times
+        chunk <- eg[[i]] # Temp pulling out each list  
+        if (substr(chunk, 1, 4) == "Plot") { # If the 1st to 4th Char == "Plot"
+        plot.id <- as.numeric(substr(chunk, 6, 9)) # Pulls out the 6th-9th characters and turns them to numbers
+        crew.id <- substr(chunk, 16, 16) # Pulls out the Crew character
+        comments <- ifelse(nchar(chunk) > 17, # If there is more than 17 chars then adds Comments 
+                           substr(chunk, 17, nchar(chunk)),
+                           "")
+        eg.plots[[plot.n]] <- # eg.plots starts an empty list with 7 Nulls. 
+                                #plot.n starts as 1 
+                list(plot.id, crew.id, comments) # Fills the list
+        plot.n <- plot.n + 1 # Adds 1 to plot.n each time there is a "Plot"
+        } else {
+                tree <- strsplit(chunk, " +")[[1]] # Splits apart string at the spaces
+                tree.id <- as.character(tree[1]) # Gets 1st
+                species <- as.character(tree[2]) # Gets 2nd
+                dbh.cm <- as.numeric(tree[3]) # Gets 3rd
+                eg.trees[[tree.n]] <- # eg.trees starts an empty list with 7 Nulls. 
+                        #tree.n starts as 1 
+                        list(plot.id, tree.id, species, dbh.cm) # Fills the list
+        tree.n <- tree.n + 1 # Adds 1 to tree.n each time there is not a "Plot"
+        }
+}
+
+#class(tree)
+#tree.id
+#chunk = "2 GF 20.3" character class. it is the last in the list of eg
+
+eg.plots
+eg.plots <- as.data.frame(do.call(rbind, eg.plots))
+names(eg.plots) <- c("plot", "crew", "comments")
+eg.plots
+        
+eg.trees <- as.data.frame(do.call(rbind, eg.trees))
+names(eg.trees) <- c("plot", "tree", "species", "dbh.cm")
+eg.trees
+
+library(maptools)
+stands <- readShapePoly("FAwR/inst/resources/data/stands.shp")
+        names(stands)
+        summary(stands)
+        str(stands)
+        stands[1:10,1:5]
+sum(stands$AREA) / 43560
+        dim(stands)
+nrow(stands)
+        ncol(stands)
+plot(stands,axes = TRUE)
+        plot(stands,axes = FALSE)
+
+
+#2.3.1 Herbicide Trial Data
+
+herbdata <- read.table("FAwR/inst/resources/data/herbdata.txt",
+                       header = TRUE, sep = ",")
+        names(herbdata)
+        dim(herbdata)
+        summary(herbdata)
+        str(herbdata) # Note the date is a factor here
+        head(herbdata)
+
+herbdata$date <- as.POSIXct(strptime(herbdata$date,"%m/%d/%Y")) 
+                # Change date to date class and strip off the time
 
 coplot(height ~ dia | treat * rep, type = "p",
                data = herbdata[herbdata$isalive == 1,],
@@ -10,9 +101,11 @@ coplot(height ~ dia | treat * rep, type = "p",
 
 summary(herbdata)
 
-head(herbdata[is.na(herbdata$height),])
+isna <- subset(herbdata,is.na(herbdata$height)) # subset NA's
+isna
 
-table(complete.cases(herbdata), herbdata$isalive)
+head(herbdata[is.na(herbdata$height),]) # looks at NA's
+table(complete.cases(herbdata), herbdata$isalive) # makes table of isalive counting 0 and 1
 
 coplot(height ~ dia | treat * factor(date),
        data = herbdata[herbdata$isalive == 1,],
@@ -25,20 +118,30 @@ levels(herbdata$rep)
 
 sort(unique(herbdata$date))
 
-bad.index <- herbdata$treat == levels(herbdata$treat)[1] & 
-        herbdata$rep == levels(herbdata$rep)[2] & 
-        herbdata$date == sort(unique(herbdata$date))[7]
-bad.index
+        head(herbdata[with(herbdata, order(treat,-dia)), ]) # Starts to identify bad data by looking at dia
+        rep.tree <- subset(herbdata,herbdata$treat == "CONTROL" & herbdata$rep == "B")
+        rep.tree[with(rep.tree,order(tree)),] # Putting tree is order can see the bad data is in 2004-04-26
+
+levels(herbdata$treat)
+levels(herbdata$rep)
+sort(unique(herbdata$date))
+
+bad.index <- herbdata$treat == levels(herbdata$treat)[1] & # level 1 == "CONTROL"
+        herbdata$rep == levels(herbdata$rep)[2] & # level 2 == "B"
+        herbdata$date == sort(unique(herbdata$date))[7] # == "2004-04-26"
+        bad.index
 
 bad.data <- herbdata[bad.index,]
-
-bad.data
+        bad.data
 
 herbdata$dia[bad.index] <- herbdata$dia[bad.index] / 2.54
-
 herbdata$dbh[bad.index] <- herbdata$dbh[bad.index] / 2.54
 
+# 2.3.4 Data Structure Functions
 split.herb <- split(herbdata, herbdata$treat)
+        split.herb
+        summary(split.herb)
+        str(split.herb)
 class(split.herb)
 
 names(split.herb)
@@ -49,24 +152,35 @@ nrow(split.herb$OUST)
 names(split.herb$CONTROL)
 
 lapply(split.herb, nrow)
+        sapply(split.herb, nrow) # using sapply instead of lapply
 
 herbdata.short <- herbdata[,c(1,2,6,7)]
-plot(herbdata.short[,3],herbdata.short[,4])
-split.herb.short <- split(herbdata.short, herbdata$treat)
-split.herb.short
+        head(herbdata.short)
+        plot(herbdata.short[,3],herbdata.short[,4]) # plot of heigth and dia
+split.herb.short <- split(herbdata.short, herbdata$treat) # split by treatment
+        split.herb.short
+
 lapply(split.herb.short, summary)
-summary(split.herb.short$CONTROL)
+        sapply(split.herb.short, summary) # using sapply
+        
+        a1<-lapply(split.herb.short, summary) # check to see if identical
+        a2<-sapply(split.herb.short, summary)
+        identical(a1,a2) # lapply and sapply are identical
 
-sort(unique(herbdata$date))
+        summary(split.herb.short$CONTROL) # just looking
+        summary(split.herb.short$OUST) # just looking
 
-herbdata.shorter <-herbdata[herbdata$date == max(herbdata$date), c(1,2,6,8)]
-split.herb.shorter <-split(herbdata.shorter, herbdata.shorter$treat)
+sort(unique(herbdata$date)) # find unique dates
 
-rt <- cbind(herbdata.shorter,
-            dc = cut(herbdata.shorter$dbh,
-                     breaks = c(0, 50, 100, 150, 200, 300, 400, 999),
+herbdata.shorter <-herbdata[herbdata$date == max(herbdata$date), c(1,2,6,8)] # treat rep height dbh with the max date
+
+split.herb.shorter <-split(herbdata.shorter, herbdata.shorter$treat) # spliting by treatment
+
+rt <- cbind(herbdata.shorter, 
+            dc = cut(herbdata.shorter$dbh, # create dc classification column
+                     breaks = c(0, 50, 100, 150, 200, 300, 400, 999), # classification breaks
                      labels = c("000--050", "050--100", "100--150",
-                                "150--200", "200--300", "300--400","400+")))
+                                "150--200", "200--300", "300--400","400+"))) # classification label
 
 st <- aggregate(x = list(basal.area = pi/(4*10^2) * rt$dbh^2,tht = rt$height,
                          stems = rep(1, nrow(rt))),
@@ -79,7 +193,8 @@ st
 st$tht <- st$tht / st$stems / 100
 st
 
-cap <- "OUST herbicide trials."
+#
+cap <- "OUST herbicide trials." # creating latex 
 st <- st[order(st$treat, st$diac),]
 st$treat <- as.character(st$treat)
 st$diac <- as.character(st$diac)
@@ -90,6 +205,7 @@ latex(st, rowlabel = NULL, rowname = NULL, file="",
       caption = cap, label = "tab:herbdata_results",
       digits = 5, booktabs = TRUE,
       cjust = c("l","c","r","r","r"))
+#
 
 names(split.herb)
 
@@ -109,14 +225,19 @@ areas <- with(herbdata,
                          rep = rep,
                          date = date),
                FUN = sum,
-               na.rm = TRUE))
+               na.rm = TRUE)) # SAA but removes the NA's
 
 areas[1:10,]
+        herbdata[1:10,]
+        names(areas)
+        names(herbdata)
 
 final.data <- merge(herbdata, areas)
 names(final.data)
+        head(final.data)
 head(final.data[,c(1,2,3,4,7,10)])
 
+# 2.4 Examples
 show.cols.with.na <- function(x) {
            ## First, check that object is a data frame
                    if (class(x) != "data.frame")
@@ -133,14 +254,19 @@ show.cols.with.na <- function(x) {
                                         
                                         } }
 
+        show.cols.with.na(ufc.tree) # testing the function
+
+
 #2.4.1 Upper Flat Creek in the UIEF
 #2.4.1.1 Tree Data
 ufc.tree <- read.csv("/Users/craigzimber/Documents/R/Forest-Analytics-with-R/ufc.csv")
-str(ufc.tree)
-show.cols.with.na(ufc.tree)
 
+str(ufc.tree)
+
+show.cols.with.na(ufc.tree)
+head(ufc.tree)
 names(ufc.tree) <-
-           c("point","tree","species","dbh.mm","ht.dm")
+           c("point","tree","species","dbh.mm","ht.dm") # renames columns
 
 ufc.tree$dbh.cm <- ufc.tree$dbh.mm / 10
 ufc.tree$ba.m2 <- ufc.tree$dbh.cm^2 / 40000 * pi
