@@ -119,8 +119,11 @@ lapply(split.herb, nrow)
 #and print some basic summaries using the lapply function:
 
 herbdata.short <- herbdata[,c(1,2,6,7)]
+plot(herbdata.short[,3],herbdata.short[,4])
 split.herb.short <- split(herbdata.short, herbdata$treat)
+split.herb.short
 lapply(split.herb.short, summary)
+
 
 
 
